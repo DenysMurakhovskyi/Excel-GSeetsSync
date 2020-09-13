@@ -6,6 +6,9 @@ import ftplib
 from datetime import datetime
 import requests
 import pandas
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 # параметры для каждого из файлов
 dataset = ['name', 'sheet', 'row_number', 'sync', 'onstock', 'price']
@@ -16,7 +19,7 @@ def load_config():
     global ftp_path, ftp_folder, ftp_user, ftp_password, rate
     config = configparser.ConfigParser()
     if os.path.exists('config.cfg'):
-        config.read('config.cfg')
+        config.read('config.cfg', encoding=coding)
         for item in dataset:
             if config.get('LOAD', item.lower()):
                 from_dict[item] = config.get('LOAD', item)
@@ -145,7 +148,40 @@ def table_for_update(df, datadict):
             df.at[index, 'XLSPrice'] = rate_value * make_float(datadict[index][1])
         else:
             no_xls.append(index)
+    for item in datadict.keys():
+        if item not in list(df.index):
+            no_gsheets.append(item)
+    print('Сформирована таблица обновлений')
     return df
+
+
+def sendreport(start, finish):
+    global no_xls, no_gsheets
+    mail_message = 'Следующие коды товара отсутствуют в XLS файле: '
+    mail_message += ', '.join(no_xls)
+    mail_message += '\n'
+    mail_message += 'Следующие коды товара отсутствуют в таблице Google: '
+    mail_message += ', '.join(no_gsheets) + '\n\n' + 'Начало синхронизации ' + str(start) + '\n' + 'Конец синхронизации ' + str(finish) + '\n'
+     
+    #The mail addresses and password
+    sender_address = '***@gmail.com'
+    sender_pass = '***'
+    receiver_address = '***@gmail.com'
+    #Setup the MIME
+    message = MIMEMultipart()
+    message['From'] = sender_address
+    message['To'] = receiver_address
+    message['Subject'] = 'Отчет от синхронизации таблиц'   #The subject line
+    #The body and the attachments for the mail
+    message.attach(MIMEText(mail_message, 'plain'))
+    #Create SMTP session for sending the mail
+    session = smtplib.SMTP('smtp.gmail.com', 587) #use gmail with port
+    session.starttls() #enable security
+    session.login(sender_address, sender_pass) #login with mail_id and password
+    text = message.as_string()
+    session.sendmail(sender_address, receiver_address, text)
+    session.quit()
+    print('Сообщение отправлено')
 
 
 def main():
@@ -179,7 +215,10 @@ def main():
         avl_range.update_values(values=avl_update)
         price_range = pygsheets.datarange.DataRange(start=(3, 7), end=(wks.rows, 7), worksheet=wks)
         price_range.update_values(values=price_update)
+        print('Записаны изменения')
     finish = datetime.now()
+    print('Отправка сообщения о синхронизации')
+    sendreport(start, finish)
     print('Начало работы ' + str(start))
     print('Конец работы ' + str(finish))
 
