@@ -16,6 +16,7 @@ coding = 'utf-8'
 
 
 def load_config():
+    """ loads config from config.cfg """
     global ftp_path, ftp_folder, ftp_user, ftp_password, rate
     config = configparser.ConfigParser()
     if os.path.exists('config.cfg'):
@@ -37,6 +38,7 @@ def load_config():
 
 
 def load_xls(datadict):
+    """ loads data from XLS file """
     if os.path.exists('C:\\ftp_temp\\' + datadict['name']):
         wb = xr.open_workbook('C:\\ftp_temp\\' + datadict['name'], formatting_info=False)
         try:
@@ -61,6 +63,7 @@ def load_xls(datadict):
 
 
 def download_xlsx():
+    """ downloads XLS file from ftp server on local machine """
     ftp = ftplib.FTP(ftp_path)
     ftp.__class__.encoding = sys.getfilesystemencoding()
     print('FTP Login')
@@ -87,6 +90,7 @@ def get_file(ftp, name, f, coding):
 
 
 def get_rate():
+    """ gets exchange rate from NBU's official resource """
     json_res = requests.get('https://bank.gov.ua/NBUStatService/v1/statdirectory/exchangenew?json')
     json_res = json_res.json()
     for item in json_res:
@@ -95,6 +99,7 @@ def get_rate():
 
 
 def load_gsheet(wks, datadict):
+    """ loads data from GSheet """
     # определить номера колонок по названиям
     data = wks.get_values((int(datadict['row_number']), 1), (int(datadict['row_number']), wks.cols), returnas='matrix')[
         0]
@@ -136,6 +141,7 @@ def make_float(price):
 
 
 def table_for_update(df, datadict):
+    """ makes DataFrame for updating GSheet """
     global no_xls
     df['XLSPrice'] = 0
     df['XLSAvls'] = 'FALSE'
@@ -156,6 +162,7 @@ def table_for_update(df, datadict):
 
 
 def sendreport(start, finish):
+    """ sends report via GMail """
     global no_xls, no_gsheets
     mail_message = 'Следующие коды товара отсутствуют в XLS файле: '
     mail_message += ', '.join(no_xls)
